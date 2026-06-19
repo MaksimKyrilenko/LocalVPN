@@ -33,18 +33,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Загрузка конфигурации
 async function loadConfig() {
     try {
-        if (window.go && window.go.main.App.GetConfig) {
-            const config = await window.go.main.App.GetConfig();
+        if (window.go && window.go.app && window.go.app.App) {
+            const config = await window.go.app.App.GetConfig();
             document.getElementById('serverURL').value = config.server_url || 'http://localhost:8080';
             document.getElementById('settingsServerURL').value = config.server_url || 'http://localhost:8080';
             document.getElementById('autoStart').checked = config.auto_start || false;
             document.getElementById('minimizeToTray').checked = config.minimize_to_tray !== false;
-        }
         
-        const appInfo = await window.go.main.App.GetAppInfo();
-        document.getElementById('platform').textContent = appInfo.platform || '-';
-        document.getElementById('settingsPeerID').textContent = appInfo.peer_id || '-';
-        appState.peerID = appInfo.peer_id;
+            const appInfo = await window.go.app.App.GetAppInfo();
+            document.getElementById('platform').textContent = appInfo.platform || '-';
+            document.getElementById('settingsPeerID').textContent = appInfo.peer_id || '-';
+            appState.peerID = appInfo.peer_id;
+        }
     } catch (e) {
         console.error('Failed to load config:', e);
     }
@@ -99,7 +99,7 @@ async function joinNetwork() {
         // Сохраняем URL сервера
         await saveServerURL(serverURL);
         
-        const result = await window.go.main.App.JoinNetwork(networkID, password);
+        const result = await window.go.app.App.JoinNetwork(networkID, password);
         console.log('Join result:', result);
         
         showToast('Подключено!', 'success');
@@ -130,13 +130,13 @@ async function createNetwork() {
     try {
         await saveServerURL(serverURL);
         
-        const result = await window.go.main.App.CreateNetwork(name, password);
+        const result = await window.go.app.App.CreateNetwork(name, password);
         console.log('Create result:', result);
         
         const networkID = result.network_id;
         
         // Автоматически подключаемся к созданной сети
-        const joinResult = await window.go.main.App.JoinNetwork(networkID, password);
+        const joinResult = await window.go.app.App.JoinNetwork(networkID, password);
         console.log('Auto-join result:', joinResult);
         
         showToast(`Сеть создана! ID: ${networkID}`, 'success');
@@ -149,7 +149,7 @@ async function createNetwork() {
 // Отключение
 async function leaveNetwork() {
     try {
-        await window.go.main.App.LeaveNetwork();
+        await window.go.app.App.LeaveNetwork();
         showToast('Отключено', 'success');
     } catch (e) {
         showToast('Ошибка: ' + e.message, 'error');
@@ -212,7 +212,7 @@ async function sendPing() {
     resultEl.textContent = 'Пинг...';
     
     try {
-        const result = await window.go.main.App.SendTestPing(target);
+        const result = await window.go.app.App.SendTestPing(target);
         resultEl.textContent = result;
     } catch (e) {
         resultEl.textContent = 'Ошибка: ' + e.message;
@@ -230,7 +230,7 @@ async function testConnection() {
     showToast('Тестирование...');
     
     try {
-        const result = await window.go.main.App.TestServerConnection(serverURL);
+        const result = await window.go.app.App.TestServerConnection(serverURL);
         showToast('Сервер доступен!', 'success');
         console.log('Server info:', result);
     } catch (e) {
@@ -259,7 +259,7 @@ async function saveSettings() {
     };
     
     try {
-        await window.go.main.App.SaveConfig(config);
+        await window.go.app.App.SaveConfig(config);
         showToast('Настройки сохранены', 'success');
         showConnect();
     } catch (e) {
@@ -269,9 +269,9 @@ async function saveSettings() {
 
 async function saveServerURL(url) {
     try {
-        const config = await window.go.main.App.GetConfig();
+        const config = await window.go.app.App.GetConfig();
         config.server_url = url;
-        await window.go.main.App.SaveConfig(config);
+        await window.go.app.App.SaveConfig(config);
     } catch (e) {
         console.error('Failed to save URL:', e);
     }
