@@ -56,6 +56,11 @@ func (a *App) Startup(ctx context.Context) {
 	// Инициализируем сетевой менеджер
 	a.networkMgr = network.NewManager(a.config.ServerURL, a.peerID, a.logger)
 
+	// Входящие пакеты из WebSocket → в TAP
+	a.networkMgr.SetPacketHandler(func(data []byte) {
+		a.vpnMgr.SendPacket(data)
+	})
+
 	a.logger.Info("MeshVPN Client started")
 	a.logger.Infof("Peer ID: %s", a.peerID)
 }
@@ -146,11 +151,12 @@ func (a *App) JoinNetwork(networkID, password string) (map[string]interface{}, e
 	}
 
 	if err := a.vpnMgr.ConfigureInterface(virtualIP, peers); err != nil {
-		return nil, fmt.Errorf("failed to configure VPN: %w", err)
+		a.logger.Warnf("Failed to configure VPN interface: %v", err)
+		// Не фатальная ошибка - сигналинг работает
 	}
 
-	// Запускаем обмен ICE с пирами
-	go a.startICESignaling(resp["peers"])
+	// Запускаем relay пакетов TAP <-> WebSocket
+	go a.startPacketRelay()
 
 	// Обновляем UI
 	wailsruntime.EventsEmit(a.ctx, "network:joined", resp)
@@ -214,6 +220,26 @@ func (a *App) TestServerConnection(serverURL string) (map[string]interface{}, er
 		return nil, err
 	}
 	return info, nil
+}
+
+// startPacketRelay пересылает пакеты между TAP и WebSocket
+func (a *App) startPacketRelay() {
+	a.logger.Info("Starting packet relay TAP <-> WebSocket")
+	packetCh := a.vpnMgr.GetPacketCh()
+
+	for {
+		if !a.networkMgr.IsConnected() {
+			return
+		}
+
+		select {
+		case packet := <-packetCh:
+			// Пакет из TAP → отправляем на сервер для relay
+			if err := a.networkMgr.SendPacket(packet); err != nil {
+				a.logger.Debugf("Failed to send packet: %v", err)
+			}
+		}
+	}
 }
 
 // startICESignaling запускает ICE сигналинг с пирами

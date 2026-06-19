@@ -202,7 +202,7 @@ func (c *Client) readPump() {
 		c.conn.Close()
 	}()
 
-	c.conn.SetReadLimit(65536)
+	c.conn.SetReadLimit(65536 * 10) // 640KB для IP пакетов
 	c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	c.conn.SetPongHandler(func(string) error {
 		c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
@@ -210,8 +210,7 @@ func (c *Client) readPump() {
 	})
 
 	for {
-		var msg models.Message
-		err := c.conn.ReadJSON(&msg)
+		msgType, data, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				c.hub.logger.Errorf("WebSocket error: %v", err)
@@ -219,28 +218,33 @@ func (c *Client) readPump() {
 			break
 		}
 
+		// Бинарные сообщения - это IP пакеты для relay
+		if msgType == websocket.BinaryMessage {
+			c.hub.relayPacket(c, data)
+			continue
+		}
+
+		var msg models.Message
+		if err := json.Unmarshal(data, &msg); err != nil {
+			c.hub.logger.Warnf("Failed to parse message: %v", err)
+			continue
+		}
+
 		msg.From = c.peerID
 		msg.NetworkID = c.networkID
 		msg.Timestamp = time.Now().Unix()
 
-		// Обрабатываем разные типы сообщений
 		switch msg.Type {
 		case string(models.SignalJoinNetwork):
 			c.hub.logger.Infof("Peer %s joined network %s", c.peerID, c.networkID)
 			c.hub.broadcast <- &msg
-
 		case string(models.SignalLeaveNetwork):
 			c.hub.logger.Infof("Peer %s left network %s", c.peerID, c.networkID)
 			c.hub.broadcast <- &msg
-
 		case string(models.SignalOffer), string(models.SignalAnswer), string(models.SignalICE):
-			// ICE signaling - пересылаем целевому пиру
 			c.hub.broadcast <- &msg
-
 		case string(models.SignalHeartbeat):
-			// Heartbeat - просто обновляем deadline
 			c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-
 		default:
 			c.hub.logger.Warnf("Unknown message type: %s", msg.Type)
 		}
@@ -285,6 +289,22 @@ func (c *Client) writePump() {
 			c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
+			}
+		}
+	}
+}
+
+// relayPacket пересылает бинарный пакет всем пирам в сети
+func (h *Hub) relayPacket(sender *Client, data []byte) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for _, client := range h.clients {
+		if client.networkID == sender.networkID && client.peerID != sender.peerID {
+			select {
+			case client.send <- data:
+			default:
+				// Буфер заполнен - пропускаем пакет
 			}
 		}
 	}

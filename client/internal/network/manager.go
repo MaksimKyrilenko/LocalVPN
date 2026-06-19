@@ -14,13 +14,14 @@ import (
 
 // Manager управляет соединением с сервером
 type Manager struct {
-	serverURL  string
-	peerID     string
-	networkID  string
-	wsConn     *websocket.Conn
-	httpClient *http.Client
-	logger     *logrus.Logger
-	connected  bool
+	serverURL      string
+	peerID         string
+	networkID      string
+	wsConn         *websocket.Conn
+	httpClient     *http.Client
+	logger         *logrus.Logger
+	connected      bool
+	onPacket       func([]byte) // callback для входящих пакетов
 }
 
 // NewManager создает новый менеджер сети
@@ -35,7 +36,10 @@ func NewManager(serverURL, peerID string, logger *logrus.Logger) *Manager {
 	}
 }
 
-// SetServerURL обновляет URL сервера
+// SetPacketHandler устанавливает обработчик входящих пакетов
+func (m *Manager) SetPacketHandler(handler func([]byte)) {
+	m.onPacket = handler
+}
 func (m *Manager) SetServerURL(url string) {
 	m.serverURL = url
 }
@@ -64,7 +68,7 @@ func (m *Manager) JoinNetwork(networkID, password, publicKey, os string) (map[st
 		"hostname":    getHostname(),
 		"os":          os,
 		"version":     "1.0.0",
-		"listen_port": 0, // Авто
+		"listen_port": 0,
 	}
 
 	resp, err := m.post(fmt.Sprintf("/api/v1/networks/%s/join", networkID), reqBody)
@@ -75,7 +79,7 @@ func (m *Manager) JoinNetwork(networkID, password, publicKey, os string) (map[st
 	m.networkID = networkID
 	m.connected = true
 
-	// Подключаемся к WebSocket для real-time обновлений
+	// Подключаемся к WebSocket для relay пакетов
 	go m.connectWebSocket()
 
 	return resp, nil
@@ -160,6 +164,14 @@ func (m *Manager) SendICEMessage(targetPeerID, msgType, payload string) error {
 	return err
 }
 
+// SendPacket отправляет бинарный пакет через WebSocket на сервер для relay
+func (m *Manager) SendPacket(data []byte) error {
+	if m.wsConn == nil {
+		return fmt.Errorf("websocket not connected")
+	}
+	return m.wsConn.WriteMessage(websocket.BinaryMessage, data)
+}
+
 // connectWebSocket подключается к WebSocket
 func (m *Manager) connectWebSocket() {
 	wsURL := m.serverURL + "/ws"
@@ -192,15 +204,26 @@ func (m *Manager) connectWebSocket() {
 
 	// Читаем сообщения
 	for m.connected {
-		var msg map[string]interface{}
-		if err := conn.ReadJSON(&msg); err != nil {
+		msgType, data, err := conn.ReadMessage()
+		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				m.logger.Errorf("WebSocket error: %v", err)
 			}
 			break
 		}
-		
-		m.handleWebSocketMessage(msg)
+
+		// Бинарное сообщение - это IP пакет от другого пира
+		if msgType == websocket.BinaryMessage {
+			if m.onPacket != nil {
+				m.onPacket(data)
+			}
+			continue
+		}
+
+		var msg map[string]interface{}
+		if err := json.Unmarshal(data, &msg); err == nil {
+			m.handleWebSocketMessage(msg)
+		}
 	}
 
 	m.logger.Info("WebSocket disconnected")
