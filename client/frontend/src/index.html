@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeshVPN</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <header>
+            <h1>MeshVPN</h1>
+            <div class="status" id="connectionStatus">
+                <span class="status-dot offline"></span>
+                <span>Не подключен</span>
+            </div>
+        </header>
+
+        <main>
+            <!-- Экран подключения -->
+            <div id="connectScreen" class="screen active">
+                <div class="card">
+                    <h2>Подключение к сети</h2>
+                    
+                    <div class="form-group">
+                        <label for="serverURL">Сервер</label>
+                        <input type="text" id="serverURL" placeholder="http://your-server.ru:8080" value="http://localhost:8080">
+                    </div>
+
+                    <div class="tabs">
+                        <button class="tab-btn active" onclick="showTab('join')">Присоединиться</button>
+                        <button class="tab-btn" onclick="showTab('create')">Создать сеть</button>
+                    </div>
+
+                    <!-- Присоединиться -->
+                    <div id="joinTab" class="tab-content active">
+                        <div class="form-group">
+                            <label for="networkID">ID сети</label>
+                            <input type="text" id="networkID" placeholder="Введите ID сети">
+                        </div>
+                        <div class="form-group">
+                            <label for="joinPassword">Пароль</label>
+                            <input type="password" id="joinPassword" placeholder="Введите пароль">
+                        </div>
+                        <button class="btn btn-primary" onclick="joinNetwork()">Подключиться</button>
+                    </div>
+
+                    <!-- Создать сеть -->
+                    <div id="createTab" class="tab-content">
+                        <div class="form-group">
+                            <label for="networkName">Название сети</label>
+                            <input type="text" id="networkName" placeholder="Моя сеть">
+                        </div>
+                        <div class="form-group">
+                            <label for="createPassword">Пароль</label>
+                            <input type="password" id="createPassword" placeholder="Минимум 6 символов">
+                        </div>
+                        <button class="btn btn-primary" onclick="createNetwork()">Создать</button>
+                    </div>
+
+                    <div class="actions">
+                        <button class="btn btn-link" onclick="testConnection()">Тест соединения</button>
+                        <button class="btn btn-link" onclick="showSettings()">Настройки</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Экран сети -->
+            <div id="networkScreen" class="screen">
+                <div class="card">
+                    <h2>Сеть <span id="networkIdDisplay"></span></h2>
+                    
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Ваш IP:</label>
+                            <span id="virtualIP" class="value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Пир ID:</label>
+                            <span id="peerID" class="value mono">-</span>
+                        </div>
+                    </div>
+
+                    <div class="peers-section">
+                        <h3>Устройства в сети</h3>
+                        <div id="peersList" class="peers-list">
+                            <div class="empty">Нет других устройств</div>
+                        </div>
+                    </div>
+
+                    <div class="actions">
+                        <button class="btn btn-danger" onclick="leaveNetwork()">Отключиться</button>
+                        <button class="btn" onclick="copyNetworkID()">Копировать ID</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Диагностика</h3>
+                    <div class="form-group">
+                        <label>Пинг устройства</label>
+                        <div class="input-group">
+                            <input type="text" id="pingTarget" placeholder="10.x.x.x">
+                            <button class="btn" onclick="sendPing()">Пинг</button>
+                        </div>
+                    </div>
+                    <pre id="pingResult" class="result"></pre>
+                </div>
+            </div>
+
+            <!-- Настройки -->
+            <div id="settingsScreen" class="screen">
+                <div class="card">
+                    <h2>Настройки</h2>
+                    
+                    <div class="form-group">
+                        <label for="settingsServerURL">URL сервера</label>
+                        <input type="text" id="settingsServerURL" placeholder="http://your-server.ru:8080">
+                    </div>
+
+                    <div class="form-group checkbox">
+                        <label>
+                            <input type="checkbox" id="autoStart">
+                            Автозапуск
+                        </label>
+                    </div>
+
+                    <div class="form-group checkbox">
+                        <label>
+                            <input type="checkbox" id="minimizeToTray" checked>
+                            Сворачивать в трей
+                        </label>
+                    </div>
+
+                    <div class="actions">
+                        <button class="btn btn-primary" onclick="saveSettings()">Сохранить</button>
+                        <button class="btn" onclick="showConnect()">Назад</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>О приложении</h3>
+                    <p>Версия: 1.0.0</p>
+                    <p>Платформа: <span id="platform"></span></p>
+                    <p>Peer ID: <span id="settingsPeerID" class="mono"></span></p>
+                </div>
+            </div>
+        </main>
+
+        <div id="toast" class="toast"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

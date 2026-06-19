@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  meshvpn-server:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: meshvpn-server
+    restart: unless-stopped
+    ports:
+      - "8090:8080"      # HTTP API
+      - "3479:3478/udp"  # STUN
+      - "3479:3478/tcp"  # STUN TCP
+    volumes:
+      - ./data:/data
+    environment:
+      - DEBUG=true
+    command: >
+      ./meshvpn-server
+      -http=:8080
+      -db=/data/meshvpn.db
+      -stun=:3478
+      -debug
+    networks:
+      - meshvpn-network
+
+  # Опционально: Caddy для HTTPS
+  caddy:
+    image: caddy:2-alpine
+    container_name: meshvpn-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - meshvpn-network
+    depends_on:
+      - meshvpn-server
+    profiles:
+      - with-https
+
+  # Опционально: TURN сервер (coturn)
+  coturn:
+    image: coturn/coturn:latest
+    container_name: meshvpn-turn
+    restart: unless-stopped
+    ports:
+      - "3478:3478"
+      - "3478:3478/udp"
+      - "5349:5349"
+      - "5349:5349/udp"
+      - "10000-20000:10000-20000/udp"
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: >
+      -c /etc/coturn/turnserver.conf
+      --external-ip=${EXTERNAL_IP:-YOUR_SERVER_IP}
+    networks:
+      - meshvpn-network
+    profiles:
+      - with-turn
+
+networks:
+  meshvpn-network:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

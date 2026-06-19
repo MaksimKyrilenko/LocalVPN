@@ -1,0 +1,58 @@
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go
+vendor/
+go.sum
+
+# Build directories
+build/
+dist/
+bin/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Database
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Configs with secrets
+.env
+.env.local
+config.yaml
+*.key
+*.pem
+*.pfx
+
+# Wails
+client/frontend/node_modules/
+client/frontend/dist/
+client/build/
+
+# Docker
+docker-compose.override.yml
+
+# Temp
+tmp/
+temp/
+*.tmp

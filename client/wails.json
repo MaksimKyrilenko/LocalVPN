@@ -1,0 +1,18 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "meshvpn-client",
+  "outputfilename": "MeshVPN.exe",
+  "frontend:build": "npm run build",
+  "frontend:install": "npm install",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "",
+  "author": {
+    "name": "MeshVPN Team",
+    "email": "admin@meshvpn.local"
+  },
+  "info": {
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © 2024 MeshVPN",
+    "comments": "MeshVPN Client Application"
+  }
+}

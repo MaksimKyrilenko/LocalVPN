@@ -1,0 +1,9 @@
+{
+  "name": "meshvpn-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "if not exist dist md dist && copy src\\index.html dist\\ && copy src\\app.js dist\\ && copy src\\style.css dist\\",
+    "dev": "npm run build"
+  },
+  "devDependencies": {}
+}

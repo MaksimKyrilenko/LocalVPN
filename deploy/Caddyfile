@@ -1,0 +1,18 @@
+# Caddy configuration for MeshVPN Server
+# Replace your-domain.ru with your actual domain
+
+your-domain.ru {
+    reverse_proxy meshvpn-server:8080
+    
+    # WebSocket support
+    @websockets {
+        header Connection *Upgrade*
+        header Upgrade websocket
+    }
+    reverse_proxy @websockets meshvpn-server:8080
+}
+
+# API subdomain (optional)
+api.your-domain.ru {
+    reverse_proxy meshvpn-server:8080
+}
